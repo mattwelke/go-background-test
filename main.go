@@ -23,15 +23,15 @@ const (
 
 func main() {
 	// Print memory stats as it runs
-	// go func() {
-	// 	timeStart := time.Now().UTC()
-	// 	for {
-	// 		time.Sleep(time.Duration(60 * time.Second))
-	// 		diffStart := time.Now().UTC().Sub(timeStart)
-	// 		fmt.Printf("time since startup: %s\n", diffStart)
-	// 		PrintMemUsage()
-	// 	}
-	// }()
+	go func() {
+		timeStart := time.Now().UTC()
+		for {
+			time.Sleep(time.Duration(60 * time.Second))
+			diffStart := time.Now().UTC().Sub(timeStart)
+			fmt.Printf("time since startup: %s\n", diffStart)
+			PrintMemUsage()
+		}
+	}()
 
 	// Also, listen to Pub/Sub
 	go func() {
@@ -50,7 +50,9 @@ func main() {
 		}
 		sub := client.Subscription(subName)
 		if err = sub.Receive(context.Background(), func(_ context.Context, m *pubsub.Message) {
-			i, _ := strconv.ParseInt(string(m.Data), 10, 64)
+			iStr := string(m.Data)
+			fmt.Printf("Beginning to process msg with i = %s.", iStr)
+			i, _ := strconv.ParseInt(iStr, 10, 64)
 			processPubSubMessage(i)
 			m.Ack()
 		}); err != nil {
