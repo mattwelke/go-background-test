@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -22,15 +23,15 @@ const (
 
 func main() {
 	// Print memory stats as it runs
-	go func() {
-		timeStart := time.Now().UTC()
-		for {
-			time.Sleep(time.Duration(60 * time.Second))
-			diffStart := time.Now().UTC().Sub(timeStart)
-			fmt.Printf("time since startup: %s\n", diffStart)
-			PrintMemUsage()
-		}
-	}()
+	// go func() {
+	// 	timeStart := time.Now().UTC()
+	// 	for {
+	// 		time.Sleep(time.Duration(60 * time.Second))
+	// 		diffStart := time.Now().UTC().Sub(timeStart)
+	// 		fmt.Printf("time since startup: %s\n", diffStart)
+	// 		PrintMemUsage()
+	// 	}
+	// }()
 
 	// Also, listen to Pub/Sub
 	go func() {
@@ -49,8 +50,8 @@ func main() {
 		}
 		sub := client.Subscription(subName)
 		if err = sub.Receive(context.Background(), func(_ context.Context, m *pubsub.Message) {
-			nowStr, _ := time.Now().UTC().MarshalText()
-			fmt.Printf("Time: %s\tMessage data: %s\n", nowStr, string(m.Data))
+			i, _ := strconv.ParseInt(string(m.Data), 10, 64)
+			processPubSubMessage(i)
 			m.Ack()
 		}); err != nil {
 			log.Fatalf("could not listen to GCP Pub/Sub subscription: %v", err)
@@ -92,4 +93,10 @@ func gcpCredsJSON() []byte {
 	}
 	gcpKeyFileDecoded, _ := b64.StdEncoding.DecodeString(gcpKeyFileBase64)
 	return gcpKeyFileDecoded
+}
+
+// Processes a message number (i) by sleeping for i milliseconds.
+func processPubSubMessage(i int64) {
+	time.Sleep(time.Duration(i) * time.Millisecond)
+	fmt.Printf("Processed message with i = %d.", i)
 }
