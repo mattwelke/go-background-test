@@ -1,15 +1,27 @@
 package main
 
 import (
+	"context"
+	b64 "encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"runtime"
 	"time"
+
+	"cloud.google.com/go/pubsub"
+	"google.golang.org/api/option"
+)
+
+const (
+	GCP_PROJECT_ID               = "GCP_PROJECT_ID"
+	GCP_KEY_FILE_BASE64          = "GCP_KEY_FILE_BASE64"
+	GCP_PUBSUB_SUBSCRIPTION_NAME = "GCP_PUBSUB_SUBSCRIPTION_NAME"
 )
 
 func main() {
+	// Print memory stats as it runs
 	go func() {
 		timeStart := time.Now().UTC()
 		for {
@@ -20,7 +32,30 @@ func main() {
 		}
 	}()
 
-	// Server just to keep platform happy
+	// Also, listen to Pub/Sub
+	gcpProjectID := os.Getenv(GCP_PROJECT_ID)
+	if gcpProjectID == "" {
+		log.Fatalf("missing env var %s", GCP_PROJECT_ID)
+	}
+	client, err := pubsub.NewClient(context.Background(), gcpProjectID,
+		option.WithCredentialsJSON(gcpCredsJSON()))
+	if err != nil {
+		log.Fatalf("could not create GCP Pub/Sub client: %v", err)
+	}
+	subName := os.Getenv(GCP_PUBSUB_SUBSCRIPTION_NAME)
+	if subName == "" {
+		log.Fatalf("missing env var %s", GCP_PUBSUB_SUBSCRIPTION_NAME)
+	}
+	sub := client.Subscription(subName)
+	if err = sub.Receive(context.Background(), func(_ context.Context, m *pubsub.Message) {
+		nowStr, _ := time.Now().UTC().MarshalText()
+		fmt.Printf("Time: %s\tMessage data: %s\n", nowStr, string(m.Data))
+		m.Ack()
+	}); err != nil {
+		log.Fatalf("could not listen to GCP Pub/Sub subscription: %v", err)
+	}
+
+	// Also, run an HTTP server to convince platform that process is healthy
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -45,4 +80,14 @@ func PrintMemUsage() {
 }
 func bToMb(b uint64) uint64 {
 	return b / 1024 / 1024
+}
+
+// Decodes and returns the JSON creds for the GCP service account from the env var.
+func gcpCredsJSON() []byte {
+	gcpKeyFileBase64 := os.Getenv(GCP_KEY_FILE_BASE64)
+	if gcpKeyFileBase64 == "" {
+		log.Fatalf("missing env var %s", GCP_KEY_FILE_BASE64)
+	}
+	gcpKeyFileDecoded, _ := b64.StdEncoding.DecodeString(gcpKeyFileBase64)
+	return gcpKeyFileDecoded
 }
