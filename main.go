@@ -51,7 +51,7 @@ func main() {
 		sub := client.Subscription(subName)
 		if err = sub.Receive(context.Background(), func(_ context.Context, m *pubsub.Message) {
 			iStr := string(m.Data)
-			fmt.Printf("Beginning to process msg with i = %s.", iStr)
+			fmt.Printf("Beginning to process msg with i = %s.\n", iStr)
 			i, _ := strconv.ParseInt(iStr, 10, 64)
 			processPubSubMessage(i)
 			m.Ack()
@@ -100,5 +100,5 @@ func gcpCredsJSON() []byte {
 // Processes a message number (i) by sleeping for i milliseconds.
 func processPubSubMessage(i int64) {
 	time.Sleep(time.Duration(i) * time.Millisecond)
-	fmt.Printf("Processed message with i = %d.", i)
+	fmt.Printf("Processed message with i = %d.\n", i)
 }
